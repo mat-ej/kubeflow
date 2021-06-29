@@ -1,0 +1,172 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: dir-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4, pipelines.kubeflow.org/pipeline_compilation_time: '2021-06-29T12:44:14.695661',
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "dir-pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4}
+spec:
+  entrypoint: dir-pipeline
+  templates:
+  - name: dir-pipeline
+    dag:
+      tasks:
+      - name: list-dir-files
+        template: list-dir-files
+        dependencies: [produce-directory]
+        arguments:
+          artifacts:
+          - {name: produce-directory-output_dir, from: '{{tasks.produce-directory.outputs.artifacts.produce-directory-output_dir}}'}
+      - name: list-dir-files-python-op
+        template: list-dir-files-python-op
+        dependencies: [produce-dir-with-files-python-op]
+        arguments:
+          artifacts:
+          - {name: produce-dir-with-files-python-op-output_dir, from: '{{tasks.produce-dir-with-files-python-op.outputs.artifacts.produce-dir-with-files-python-op-output_dir}}'}
+      - {name: produce-dir-with-files-python-op, template: produce-dir-with-files-python-op}
+      - {name: produce-directory, template: produce-directory}
+  - name: list-dir-files
+    container:
+      args: []
+      command: [ls, /tmp/inputs/input_dir/data]
+      image: alpine
+    inputs:
+      artifacts:
+      - {name: produce-directory-output_dir, path: /tmp/inputs/input_dir/data}
+    metadata:
+      labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4, pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"command": ["ls", {"inputPath": "input_dir"}], "image": "alpine"}}, "inputs":
+          [{"name": "input_dir"}], "name": "List dir files"}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "1e40e98aa8d5485ce2913d710ed5ea7e2c2cc359fa2194fdba8af8411c558f0f"}'}
+  - name: list-dir-files-python-op
+    container:
+      args: [--input-dir, /tmp/inputs/input_dir/data]
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def list_dir_files_python_op(input_dir_path):
+            import os
+            dir_items = os.listdir(input_dir_path)
+            for dir_item in dir_items:
+                print(dir_item)
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='List dir files python op', description='')
+        _parser.add_argument("--input-dir", dest="input_dir_path", type=str, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = list_dir_files_python_op(**_parsed_args)
+      image: python:3.7
+    inputs:
+      artifacts:
+      - {name: produce-dir-with-files-python-op-output_dir, path: /tmp/inputs/input_dir/data}
+    metadata:
+      labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4, pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--input-dir", {"inputPath": "input_dir"}], "command": ["sh",
+          "-ec", "program_path=$(mktemp)\nprintf \"%s\" \"$0\" > \"$program_path\"\npython3
+          -u \"$program_path\" \"$@\"\n", "def list_dir_files_python_op(input_dir_path):\n    import
+          os\n    dir_items = os.listdir(input_dir_path)\n    for dir_item in dir_items:\n        print(dir_item)\n\nimport
+          argparse\n_parser = argparse.ArgumentParser(prog=''List dir files python
+          op'', description='''')\n_parser.add_argument(\"--input-dir\", dest=\"input_dir_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = list_dir_files_python_op(**_parsed_args)\n"], "image": "python:3.7"}},
+          "inputs": [{"name": "input_dir"}], "name": "List dir files python op"}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  - name: produce-dir-with-files-python-op
+    container:
+      args: [--num-files, '15', --output-dir, /tmp/outputs/output_dir/data]
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def _make_parent_dirs_and_return_path(file_path: str):
+            import os
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            return file_path
+
+        def produce_dir_with_files_python_op(
+            output_dir_path, num_files = 10
+        ):
+            import os
+            os.makedirs(output_dir_path, exist_ok=True)
+            for i in range(num_files):
+                file_path = os.path.join(output_dir_path, str(i) + '.txt')
+                with open(file_path, 'w') as f:
+                    f.write(str(i))
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Produce dir with files python op', description='')
+        _parser.add_argument("--num-files", dest="num_files", type=int, required=False, default=argparse.SUPPRESS)
+        _parser.add_argument("--output-dir", dest="output_dir_path", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = produce_dir_with_files_python_op(**_parsed_args)
+      image: python:3.7
+    outputs:
+      artifacts:
+      - {name: produce-dir-with-files-python-op-output_dir, path: /tmp/outputs/output_dir/data}
+    metadata:
+      labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4, pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": [{"if": {"cond": {"isPresent": "num_files"}, "then": ["--num-files",
+          {"inputValue": "num_files"}]}}, "--output-dir", {"outputPath": "output_dir"}],
+          "command": ["sh", "-ec", "program_path=$(mktemp)\nprintf \"%s\" \"$0\" >
+          \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n", "def _make_parent_dirs_and_return_path(file_path:
+          str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef produce_dir_with_files_python_op(\n    output_dir_path,
+          num_files = 10\n):\n    import os\n    os.makedirs(output_dir_path, exist_ok=True)\n    for
+          i in range(num_files):\n        file_path = os.path.join(output_dir_path,
+          str(i) + ''.txt'')\n        with open(file_path, ''w'') as f:\n            f.write(str(i))\n\nimport
+          argparse\n_parser = argparse.ArgumentParser(prog=''Produce dir with files
+          python op'', description='''')\n_parser.add_argument(\"--num-files\", dest=\"num_files\",
+          type=int, required=False, default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-dir\",
+          dest=\"output_dir_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = produce_dir_with_files_python_op(**_parsed_args)\n"], "image": "python:3.7"}},
+          "inputs": [{"default": "10", "name": "num_files", "optional": true, "type":
+          "Integer"}], "name": "Produce dir with files python op", "outputs": [{"name":
+          "output_dir"}]}', pipelines.kubeflow.org/component_ref: '{}', pipelines.kubeflow.org/arguments.parameters: '{"num_files":
+          "15"}'}
+  - name: produce-directory
+    container:
+      args: []
+      command:
+      - sh
+      - -ecx
+      - |
+        num_files="$0"
+        output_path="$1"
+        mkdir -p "$output_path"
+        for i in $(seq "$num_files"); do
+          echo "$i" > "$output_path/${i}.txt"
+        done
+      - '15'
+      - /tmp/outputs/output_dir/data
+      image: alpine
+    outputs:
+      artifacts:
+      - {name: produce-directory-output_dir, path: /tmp/outputs/output_dir/data}
+    metadata:
+      labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.6.4, pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"command": ["sh", "-ecx", "num_files=\"$0\"\noutput_path=\"$1\"\nmkdir
+          -p \"$output_path\"\nfor i in $(seq \"$num_files\"); do\n  echo \"$i\" >
+          \"$output_path/${i}.txt\"\ndone\n", {"inputValue": "num_files"}, {"outputPath":
+          "output_dir"}], "image": "alpine"}}, "inputs": [{"name": "num_files", "type":
+          "Integer"}], "name": "Produce directory", "outputs": [{"name": "output_dir"}]}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "2dc9c18f013cc2c8097a6d86ec17d03ac5b5ba613b6d95d242ad50b4301ed5b6"}',
+        pipelines.kubeflow.org/arguments.parameters: '{"num_files": "15"}'}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
