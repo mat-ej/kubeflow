@@ -1,2 +1,2 @@
 # kubeflow
-kf  
+kf on prem 
