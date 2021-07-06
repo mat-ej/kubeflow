@@ -57,7 +57,7 @@ def looping_pipe_volume(drive_file_id: str = '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od'
         lr_task = lr_op(elo_task.output)
 
 if __name__ == '__main__':
-    df = pd.read_csv('data/data.csv')
+    # df = pd.read_csv('data/data.csv')
     # print(df)
     # df = pd.DataFrame()
     # print(df)
