@@ -9,8 +9,8 @@ def compile_pipe(pipeline) -> str:
 def run_pipe(pipeline, arguments = None, experiment_name = "Default"):
     return client.create_run_from_pipeline_func(pipeline, arguments=arguments, experiment_name=experiment_name)
 
-if __name__ == '__main__':
-    # test
-    download_csv_volume = None
-    compile_pipe(download_csv_volume)
+def compile_run_pipe(pipeline, arguments = None, experiment_name = "Default"):
+    pipe_local_path = compile_pipe(pipeline)
+    run_result = run_pipe(pipeline, arguments, experiment_name)
+    return (pipe_local_path, run_result)
 
