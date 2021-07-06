@@ -18,11 +18,34 @@ def print_op(s: int):
     print(s)
 
 @dsl.pipeline(
-    name="sequential pipe",
+    name="distr training with volume",
     description="pass pickle files along"
 )
-def looping_pipe(drive_file_id: str = '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od'):
-    drive_download_task = drive_download_op(drive_file_id)
+def looping_pipe_volume(drive_file_id: str = '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od',
+                        local_file_path ='/data/isdb.csv',
+                        volume_size: str = "1Gi",
+                        volume_mnt_point: str = "/data"
+                        ):
+
+    vop = dsl.VolumeOp(
+        name="create-pvc",
+        resource_name="my-pvc",
+        modes=dsl.VOLUME_MODE_RWM,
+        size=volume_size
+    )
+
+    #NOTE another option is to attach volume as: drive_download_task = drive_download_op(drive_file_id, output_csv_path=local_file_path).add_pvolumes({volume_mnt_point : vop.volume})
+    drive_download_task = dsl.ContainerOp(
+        name='google drive download',
+        image='library/bash:4.4.23',
+        command=['sh', '-c'],
+        arguments=['wget --no-check-certificate "https://docs.google.com/uc?export=download&id=$0" -O "$1"',
+                   drive_file_id, local_file_path],
+        file_outputs={'downloaded': '/data/isdb.csv'}, #TODO figure out why I am unable to use a pipeline parameter here
+        pvolumes={volume_mnt_point: vop.volume}
+    )
+
+
     csv_to_pickle_task = csv_to_pickle_op(input_csv_path=drive_download_task.output)
     names2ids_task = names2ids_op(input_pkl_path=csv_to_pickle_task.output)
     get_seasons_task = get_seasons_op(csv_to_pickle_task.output)
@@ -44,7 +67,7 @@ if __name__ == '__main__':
     # arr = np.array([1,2,3])
     # print()
 
-    pipeline_path = compile_pipe(looping_pipe)
-    run_pipe(looping_pipe, experiment_name='soccer')
+    pipeline_path = compile_pipe(looping_pipe_volume)
+    run_pipe(looping_pipe_volume, experiment_name='soccer')
 
     # print('etela')

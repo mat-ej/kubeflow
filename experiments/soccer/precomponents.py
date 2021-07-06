@@ -1,19 +1,7 @@
-import kfp
 import kfp.dsl as dsl
-import pandas as pd
-from kfp.components import create_component_from_func
+from kfp.components import InputTextFile, OutputTextFile, OutputBinaryFile, InputBinaryFile
 
-from kfp import components
-from kf_utils.pipe_ops import compile_pipe, run_pipe
-from kf_utils.env import client
-# from kfp.components import func_to_container_op, InputPath, OutputPath
-from kfp.components import InputPath, InputTextFile, OutputPath, OutputTextFile, func_to_container_op, OutputBinaryFile, InputBinaryFile
-
-
-pandas_transform_csv_op = components.load_component_from_url('https://raw.githubusercontent.com/kubeflow/pipelines/6162d55998b176b50267d351241100bb0ee715bc/components/pandas/Transform_DataFrame/in_CSV_format/component.yaml')
-
-
-def drive_download_op(drive_file_id: str, output_csv_path: OutputTextFile(str)):
+def drive_download_op(drive_file_id: str):
     '''
     :param drive_file_id:
     :param local_file_path:
@@ -21,12 +9,14 @@ def drive_download_op(drive_file_id: str, output_csv_path: OutputTextFile(str)):
     # NOTE no need to anotate, it already returns op directly
     :return: bash container operation
     '''
+    # print(output_csv_path)
+    #TODO figure out file_outputs with a function parameter, not static
     return dsl.ContainerOp(
           name='google drive download',
           image='library/bash:4.4.23',
           command=['sh', '-c'],
-          arguments=['wget --no-check-certificate "https://docs.google.com/uc?export=download&id=$0" -O "$1"', drive_file_id, output_csv_path],
-          file_outputs = {'downloaded': '/data/isdb.csv'}
+          arguments=['wget --no-check-certificate "https://docs.google.com/uc?export=download&id=$0" -O "$1"', drive_file_id, '/output'],
+          file_outputs = {'downloaded': '/output'}
     )
 
 def csv_to_pickle(input_csv_path: InputTextFile(), output_pkl_path: OutputBinaryFile()):
@@ -34,9 +24,8 @@ def csv_to_pickle(input_csv_path: InputTextFile(), output_pkl_path: OutputBinary
     df = pd.read_csv(input_csv_path)
     df.to_pickle(output_pkl_path)
 
-# source_file: InputTextFile(str), odd_lines_file: OutputTextFile(str), even_lines_file: OutputTextFile(str)
+
 def names2ids(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile()):
-    import numpy as np
     import pandas as pd
     class Names2Ids():
         def __init__(self, name_cols=["HT", "AT"], id_cols=["HID", "AID"]):
@@ -61,7 +50,20 @@ def names2ids(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFi
     df = df.join(df_id)
     df.to_pickle(output_pkl_path)
 
-def elo(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile()):
+def pandas_transform(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile(), transform_code: str = "df = df", args: list = [], verbose: bool = True):
+    import pandas as pd
+
+    df = pd.read_pickle(input_pkl_path)
+    if args:
+        transform_code = transform_code.format(*args)
+
+    namespace = locals()
+    exec(transform_code, namespace)
+    namespace['df'].to_pickle(output_pkl_path)
+    if verbose:
+        print(namespace['df'].head())
+
+def elo(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile(), verbose: bool = True):
     import pandas as pd
     import numpy as np
     class EloTransformer():
@@ -144,9 +146,9 @@ def elo(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile()):
     df = pd.read_pickle(input_pkl_path)
     df_elo = elo_transf.fit_transform(df)
     df = df.join(df_elo)
-    print(df.columns)
     df.to_pickle(output_pkl_path)
-
+    if verbose:
+        print(df.head())
 
 def lr(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile()):
     import pandas as pd
@@ -170,47 +172,8 @@ def lr(input_pkl_path: InputBinaryFile(), output_pkl_path: OutputBinaryFile()):
     print(predictions)
     pickle.dump(scikit_model, output_pkl_path)
 
-
-
-csv_to_pickle_op = create_component_from_func(func=csv_to_pickle, base_image='matejcvut/kubeflow-pod:0')
-names2ids_op = create_component_from_func(func=names2ids, base_image='matejcvut/kubeflow-pod:0')
-elo_op = create_component_from_func(func=elo, base_image='matejcvut/kubeflow-pod:0')
-lr_op = create_component_from_func(func=lr, base_image='matejcvut/kubeflow-pod:0')
-
-@dsl.pipeline(
-    name="sequential pipe",
-    description="pass pickle files along"
-)
-def sequential_pipe(drive_file_id: str = '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od',
-                    local_file_path ='/data/isdb.csv',
-                    volume_size: str = "1Gi",
-                    volume_mnt_point: str = "/data"
-                    ):
-
-    vop = dsl.VolumeOp(
-        name="create-pvc",
-        resource_name="my-pvc",
-        modes=dsl.VOLUME_MODE_RWM,
-        size=volume_size
-    )
-
-    # drive_download_task = drive_download_op(drive_file_id, local_file_path).add_pvolumes({volume_mnt_point : vop.volume})
-    # names2ids_task = names2ids_op(input_csv_path=local_file_path).add_pvolumes({volume_mnt_point : drive_download_task.pvolume})
-    # print(names2ids_task)
-
-    drive_download_task = drive_download_op(drive_file_id, local_file_path).add_pvolumes({volume_mnt_point : vop.volume})
-    csv_to_pickle_task = csv_to_pickle_op(input_csv_path=drive_download_task.output)
-    names2ids_task = names2ids_op(input_pkl_path=csv_to_pickle_task.output)
-    elo_task = elo_op(names2ids_task.output)
-    lr_task = lr_op(elo_task.output)
-
-if __name__ == '__main__':
-    # df = pd.DataFrame()
-    # print(df)
-    # pipeline_path = compile_pipe(df_pipeline)
-    # run_pipe(df_pipeline, experiment_name='soccer')
-
-    pipeline_path = compile_pipe(sequential_pipe)
-    run_pipe(sequential_pipe, experiment_name='soccer')
-
-    print('etela')
+def get_seasons(input_pkl_path: InputBinaryFile()) -> list:
+    import pandas as pd
+    df = pd.read_pickle(input_pkl_path)
+    seasons = df['Sea'].unique()
+    return seasons.tolist()
