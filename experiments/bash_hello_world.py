@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+#NOTE bash download
+# fetch = kfp.dsl.ContainerOp(name='download',
+#  image='busybox',
+#  command=['sh', '-c'],
+#  arguments=[
+#  'sleep 1;'
+#  'mkdir -p /tmp/data;'
+#  'wget ' + data_url +
+#  ' -O /tmp/data/results.csv'
+#  ],
+#  file_outputs={'downloaded': '/tmp/data'})
+
 import kfp
 from kfp import dsl
 from kf_utils.pipe_ops import compile_pipe, run_pipe
