@@ -1,4 +1,4 @@
-from kf_utils.pipe_ops import compile_run_pipe
+from kf_utils.pipe_ops import compile_run_pipe, compile_pipe
 from kfp.components import create_component_from_func, func_to_container_op
 from precomponents import *
 
@@ -47,4 +47,5 @@ def recursive_pipe(drive_file_id: str = '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od'):
 
 if __name__ == '__main__':
     arguments = {'drive_file_id' : '1oiudIrYHaxjW6sEVh_GH7YlIVT_Xi0Od'}
+    # compile_pipe(recursive_pipe)
     compile_run_pipe(recursive_pipe, arguments=arguments, experiment_name="soccer")
