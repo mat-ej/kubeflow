@@ -1,4 +1,4 @@
-# Copyright 2020 The Kubeflow Authors
+# Copyright 2019 The Kubeflow Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import kfp.dsl as dsl
 import kfp
-from env import *
+from kfp import dsl
+from kf_utils.pipe_ops import compile_pipe, run_pipe
+def echo_op():
+    return dsl.ContainerOp(
+        name='echo',
+        image='library/bash:4.4.23',
+        command=['sh', '-c'],
+        arguments=['echo "hello world"']
+    )
 
-@kfp.components.create_component_from_func
-def print_op(s: str):
-    print(s)
 
-@dsl.pipeline(name='my-pipeline')
-def pipeline():
-    loop_args = [{'A_a': 1, 'B_b': 2}, {'A_a': 10, 'B_b': 20}]
-    with dsl.ParallelFor(loop_args, parallelism=10) as item:
-        print_op(item)
-        print_op(item.A_a)
-        print_op(item.B_b)
+@dsl.pipeline(
+    name='my-first-pipeline',
+    description='A hello world pipeline.'
+)
+def hello_world_pipeline():
+    echo_task = echo_op()
 
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(pipeline, __file__ + '.yaml')
-    client.create_run_from_pipeline_func(pipeline, arguments={})
+    compile_pipe(hello_world_pipeline)
+    run_pipe(hello_world_pipeline)

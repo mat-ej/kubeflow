@@ -1,3 +1,10 @@
+from kfp import components
+from kfp import dsl
+from kfp.components import create_component_from_func
+from kf_utils.pipe_ops import compile_pipe, run_pipe
+from kfp.components import InputTextFile, OutputTextFile, OutputBinaryFile, InputBinaryFile
+
+
 def writedf(output_dataframe_path: OutputBinaryFile()):
     import pandas as pd
     import numpy as np
@@ -22,3 +29,7 @@ read_df_op = create_component_from_func(readdf, base_image='matejcvut/kubeflow-p
 def df_pipeline():
     write_df_task = write_df_op()
     read_df_task = read_df_op(write_df_task.output)
+
+if __name__ == "__main__":
+    run_pipe(df_pipeline)
+

@@ -19,6 +19,8 @@
 import kfp
 from kfp import dsl
 from env import *
+from kubeflow.experiments.python.utils import compile_pipe, run_pipe
+
 
 def flip_coin_op():
     """Flip a coin and output heads or tails randomly."""
@@ -61,7 +63,7 @@ def flip_component(flip_result):
     name='recursive-loop-pipeline',
     description='Shows how to create recursive loops.'
 )
-def flipcoin():
+def recursion():
     first_flip = flip_coin_op()
     # set max_cache_staleness to 0 to prevent infinite loop due to caching
     first_flip.execution_options.caching_strategy.max_cache_staleness = "P0D"
@@ -72,8 +74,5 @@ def flipcoin():
 
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(flipcoin, PIPE_DIR + Path(__file__).stem + '.yaml')
-
-    run = client.create_run_from_pipeline_func(flipcoin, arguments = {})
-
-    print(run)
+    compile_pipe(recursion)
+    run_pipe(recursion)

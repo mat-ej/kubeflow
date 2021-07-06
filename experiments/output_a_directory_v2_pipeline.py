@@ -22,8 +22,8 @@ import kfp
 from kfp.components import create_component_from_func, load_component_from_text, InputPath, OutputPath
 import kfp.v2 as v2
 from kfp.v2.dsl import Input, Output, Artifact
-from env import *
-
+from kf_utils.pipe_ops import compile_run_pipe
+from kf_utils.env import CLUSTER, PIPE_DIR
 
 # Outputting directories from Python-based components:
 
@@ -135,14 +135,16 @@ def dir_pipeline_v2(subdir: str = 'texts'):
 
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(dir_pipeline, PIPE_DIR + Path(__file__).stem + '.yaml')
-    kfp.compiler.Compiler().compile(dir_pipeline_v2, PIPE_DIR + Path(__file__).stem + 'v2.yaml')
+
+    compile_run_pipe(dir_pipeline)
+    #TODO figure out v2
+    # kfp.compiler.Compiler().compile_pipe(dir_pipeline_v2, PIPE_DIR + Path(__file__).stem + 'v2.yaml')
 
     # client.create_run_from_pipeline_func(
     #     dir_pipeline, arguments={}
     # )
-    # kfp.Client(host=kfp_endpoint).create_run_from_pipeline_func(
-    #     dir_pipeline,
-    #     arguments={},
-    #     mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE
-    # )
+    kfp.Client(host=CLUSTER).create_run_from_pipeline_func(
+        dir_pipeline_v2,
+        arguments={},
+        mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE
+    )

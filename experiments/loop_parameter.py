@@ -1,7 +1,8 @@
 from kfp import components
 from kfp import dsl
 from typing import List
-from env import *
+
+from kf_utils.pipe_ops import run_pipe, compile_pipe
 
 
 @components.create_component_from_func
@@ -34,7 +35,5 @@ def param_loop_pipeline(greeting:str= 'this is a test for looping through parame
 
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(param_loop_pipeline, PIPE_DIR + Path(__file__).stem + '.yaml')
-    run = client.create_run_from_pipeline_func(param_loop_pipeline, arguments = {})
-
-    print(run)
+    compile_pipe(param_loop_pipeline)
+    run_pipe(param_loop_pipeline)
