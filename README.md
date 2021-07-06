@@ -2,6 +2,10 @@
 kf on prem 
 
 # Setup notes 
+## kubectl
+### alias
+    alias k='kubectl'
+
 ## Port forward
 ### Pipelines UI
 kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
