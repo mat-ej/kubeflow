@@ -8,7 +8,9 @@ kf on prem
 
 ## Port forward
 ### Pipelines UI
-kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
+
+
+
 ### Minio-service 
 kubectl port-forward -n kubeflow svc/minio-service 9000:9000
 
